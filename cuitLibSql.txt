@@ -1,0 +1,119 @@
+create user cuitlib2 identified by 'cuitlib2';
+grant all on cuitlib2.* to cuitlib2;
+
+CREATE TABLE `t_books` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(200) DEFAULT NULL,
+  `writer` varchar(200) DEFAULT NULL,
+  `publisher` varchar(200) DEFAULT NULL,
+  `ISBN` varchar(200) DEFAULT NULL,
+  `price` varchar(200) DEFAULT NULL,
+  `physicalDescriptionArea` varchar(500) DEFAULT NULL,
+  `subject` text,
+  `classNumber` varchar(200) DEFAULT NULL,
+  `marc_no` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `t_user` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(300) NOT NULL,
+  `certificatenumber` varchar(100) NOT NULL,
+  `barcode` varchar(100) NOT NULL,
+  `expireDate` date NOT NULL,
+  `registreDate` date NOT NULL,
+  `effectDate` date NOT NULL,
+  `readerType` varchar(100) NOT NULL,
+  `totalBooks` varchar(300) NOT NULL,
+  `department` varchar(300) NOT NULL,
+  `workunit` varchar(300) NOT NULL,
+  `sex` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `t_borrowedbook` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `borrowerCode` varchar(45) NOT NULL,
+  `barcode` varchar(45) NOT NULL,
+  `marc_no` varchar(45) NOT NULL,
+  `name` varchar(300) NOT NULL,
+  `writer` varchar(300) NOT NULL,
+  `borrowDate` date NOT NULL,
+  `returnDate` date NOT NULL,
+  `address` varchar(300) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `t_borrowingbook` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `borrowercode` varchar(45) NOT NULL,
+  `barcode` varchar(45) NOT NULL,
+  `marc_no` varchar(45) NOT NULL,
+  `name` varchar(300) DEFAULT NULL,
+  `writer` varchar(200) DEFAULT NULL,
+  `borrowDate` date DEFAULT NULL,
+  `dueDate` date DEFAULT NULL,
+  `address` varchar(300) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+
+
+
+select count(*) from t_user;
+select count(*) from t_borrowingbook;
+select count(*) from t_borrowedbook;
+
+truncate table t_user;
+truncate table t_borrowingbook;
+truncate table t_borrowedbook;
+
+select count(*) from t_books;
+
+truncate table t_books;
+
+select distinctMarc_no.marc_no marc_no from (
+	select distinct(marc_no) from(
+		select beb.marc_no from t_borrowedbook beb union all 
+		select bib.marc_no from t_borrowedbook bib
+	) marc_no
+)distinctMarc_no where distinctMarc_no.marc_no not in (
+	select books.marc_no from t_books books
+);
+
+select distinct(distinctMarc_no.marc_no) from (
+	select distinct(marc_no) from(
+		select beb.marc_no from t_borrowedbook beb union all 
+		select bib.marc_no from t_borrowedbook bib
+	) marc_no
+)distinctMarc_no left join t_books books 
+on distinctMarc_no.marc_no = books.marc_no 
+where books.marc_no is NULL;
+
+select count(distinct(distinctMarc_no.marc_no)) from (
+	select distinct(marc_no) from(
+		select beb.marc_no from t_borrowedbook beb union all 
+		select bib.marc_no from t_borrowedbook bib
+	) marc_no
+)distinctMarc_no 
+where distinctMarc_no.marc_no not in (select books.marc_no from t_books books);
+
+select distinct(distinctMarc_no.marc_no) from (
+	select distinct(marc_no) from(
+		select beb.marc_no from t_borrowedbook beb union all 
+		select bib.marc_no from t_borrowedbook bib
+	) marc_no
+)distinctMarc_no left join t_books books 
+on distinctMarc_no.marc_no = books.marc_no 
+where books.marc_no is NULL;
+
+select distinctMarc_no.marc_no marc_no from (
+	select distinct(marc_no) from(
+		select beb.marc_no from t_borrowedbook beb union all 
+		select bib.marc_no from t_borrowedbook bib
+	) marc_no
+)distinctMarc_no left join t_books books on distinctMarc_no.marc_no = books.marc_no;
+
+
+select marc_no from t_books books;
