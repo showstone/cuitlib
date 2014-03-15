@@ -1,0 +1,34 @@
+2014-03-15 11:08:25,259 - cuitlib - ERROR - init cuitlib crawler,启动时间:Mar-15-14 11:08:25
+2014-03-15 11:08:25,260 - cuitlib - ERROR - 开始读取上次任务状态
+2014-03-15 11:08:25,260 - cuitlib - ERROR - 读取上次任务状态完毕
+2014-03-15 11:08:25,292 - cuitlib - ERROR - 初始化数据库连接池成功
+2014-03-15 11:08:25,292 - cuitlib - ERROR - 共写入0个部门
+2014-03-15 11:08:25,292 - cuitlib.GetUserDetail - ERROR - 新建获取用户资料线程
+2014-03-15 11:08:25,292 - cuitlib.GetUserDetail - ERROR - 新建获取用户资料线程
+2014-03-15 11:08:25,292 - cuitlib.GetUserDetail - ERROR - 新建获取用户资料线程
+2014-03-15 11:08:25,293 - cuitlib.WrittingUserDetail - ERROR - 新建写入用户资料线程
+2014-03-15 11:08:25,296 - cuitlib.WrittingBookDetail - ERROR - 新建写入书籍详细资料线程
+2014-03-15 11:08:26,292 - cuitlib.GetUserDetail - ERROR - 获取要读取的用户超时
+2014-03-15 11:08:26,292 - cuitlib.GetUserDetail - ERROR - 获取要读取的用户超时
+2014-03-15 11:08:26,293 - cuitlib.GetUserDetail - ERROR - 获取要读取的用户超时
+2014-03-15 11:08:26,296 - cuitlib - ERROR - 等待所有执行线程
+2014-03-15 11:08:26,296 - cuitlib - ERROR - 所有爬虫线程都已死亡，等待写入线程死亡
+2014-03-15 11:08:28,296 - cuitlib.WrittingBookDetail - ERROR - 获取书籍超时，跳出循环
+2014-03-15 11:08:55,293 - cuitlib.WrittingUserDetail - ERROR - 获取用户信息超时，跳出循环
+2014-03-15 11:08:55,293 - cuitlib.WrittingUserDetail - ERROR - 跳出保存用户线程
+2014-03-15 11:08:56,296 - cuitlib - ERROR - 所有写入线程都已死亡
+2014-03-15 11:08:56,296 - cuitlib - ERROR - 开始保存当前爬虫
+2014-03-15 11:08:56,296 - cuitlib - ERROR - 开始保存当前任务执行状态
+2014-03-15 11:08:56,296 - cuitlib - ERROR - 保存当前任务执行状态完毕
+2014-03-15 11:08:56,298 - cuitlib - ERROR - grap cuitlib finished,结束时间:Mar-15-14 11:08:56
+2014-03-15 11:08:56,299 - cuitlib.WrittingUserDetail - ERROR - 写入用户资料线程关毕
+2014-03-15 11:08:56,301 - cuitlib.WrittingBookDetail - ERROR - 写入书籍详细资料线程关毕
+2014-03-15 11:08:56,301 - cuitlib.GetBookDetail - ERROR - 获取书籍详细资料线程关毕
+2014-03-15 11:08:56,301 - cuitlib.GetBookDetail - ERROR - 获取书籍详细资料线程关毕
+2014-03-15 11:08:56,301 - cuitlib.GetBookDetail - ERROR - 获取书籍详细资料线程关毕
+2014-03-15 11:08:56,301 - cuitlib.GetBookDetail - ERROR - 获取书籍详细资料线程关毕
+2014-03-15 11:08:56,301 - cuitlib.GetBookDetail - ERROR - 获取书籍详细资料线程关毕
+2014-03-15 11:08:56,302 - cuitlib.GetBookDetail - ERROR - 获取书籍详细资料线程关毕
+2014-03-15 11:08:56,302 - cuitlib.GetUserDetail - ERROR - 关毕获取用户资料线程
+2014-03-15 11:08:56,302 - cuitlib.GetUserDetail - ERROR - 关毕获取用户资料线程
+2014-03-15 11:08:56,302 - cuitlib.GetUserDetail - ERROR - 关毕获取用户资料线程

@@ -35,6 +35,7 @@ def initLogger(logFileName):
     return logger
 
 def loadLastStatus(statusFile):
+    logger.error("开始读取上次任务状态")
     try:
         fh = open(statusFile,"r+")
         dicStr = fh.read()
@@ -45,24 +46,27 @@ def loadLastStatus(statusFile):
     except:
         readedDeaprtment = {}
         readingDepartment = {}
+    logger.error("读取上次任务状态完毕")
     return (readedDeaprtment,readingDepartment)
 
 def saveLastStatus(statusFile,readedDeaprtment,readingDepartment):
+    logger.error("开始保存当前任务执行状态")
     fh = open(statusFile,"w+")
     fh.write( str(readedDeaprtment)+ ";"+ str(readingDepartment))
     fh.close()
-    logger.debug("保存当前任务执行状态")
+    logger.error("保存当前任务执行状态完毕")
 
 if __name__ == '__main__':
     logFileName = "cuitlib.log"
     logger = initLogger( logFileName)
-    logger.debug("init cuitlib crawler,启动时间:"+ datetime.datetime.now().strftime('%b-%d-%y %H:%M:%S') )
+    logger.error("init cuitlib crawler,启动时间:"+ datetime.datetime.now().strftime('%b-%d-%y %H:%M:%S') )
     
     statusFile = os.getcwd()+ "\\"+ "status.cuitlib"
     lastStatus = loadLastStatus(statusFile)
     readDeaprtment = lastStatus[0]
     readingDepartment = lastStatus[1]
     threadCollect = []
+    writeThread = []
 
     readDeaprtment = {}
     readingDepartment = {}
@@ -103,7 +107,7 @@ if __name__ == '__main__':
         for i in range(5):
             conn=MySQLdb.connect(host=dbhost, user=dbuser, passwd=dbpasswd, db=dbName, port=dbport,charset=dbcharset)
             dbConnQueue.put(conn)
-        logger.debug("初始化数据库连接池成功")
+        logger.error("初始化数据库连接池成功")
     except MySQLdb.Error,e:
         logger.error("初始化数据库连接池失败,详细信息")
         logger.error("Mysql Error %d: %s" % (e.args[0], e.args[1]))
@@ -111,35 +115,60 @@ if __name__ == '__main__':
         sys.exit()
 
     departParaQueue = Queue.Queue()
-    for yearPos in range(2010,2013):
-            for departPos in range(1,2):
+    for yearPos in range(2010,2010):
+            for departPos in range(1,1):
                 departParaQueue.put((yearPos,'%03d'%(departPos)))
+    logger.error("共写入%d个部门" %(departParaQueue.qsize()))
 
     userInfoQueue = Queue.Queue()
 
-    for getUserDetailThreadNum in range(15):
+    for getUserDetailThreadNum in range(3):
         threadGetUserDetailThread = ThreadGetUserDetailThread(departParaQueue,userInfoQueue,readDeaprtment,readingDepartment)
         threadGetUserDetailThread.start()
         threadCollect.append( threadGetUserDetailThread)
 
     writtingUserDetailThread = WrittingUserDetailThread(dbConnQueue,userInfoQueue,bookIdQueue)
     writtingUserDetailThread.start()
-    threadCollect.append( writtingUserDetailThread)
+    writeThread.append( writtingUserDetailThread)
 
-    for getBookDetailThreadNum in range(60):
+    for getBookDetailThreadNum in range(6):
         getBookDetailThread = GetBookDetailThread( bookIdQueue, bookDetailQueue,readedBookId)
         getBookDetailThread.start()
         threadCollect.append( getBookDetailThread)
 
     writtingBookDetailThread = WrittingBookDetailThread(dbConnQueue,bookDetailQueue)
     writtingBookDetailThread.start()
-    threadCollect.append( writtingBookDetailThread)
+    writeThread.append( writtingBookDetailThread)
 
     for t in threadCollect:
         t.join()
 
-    logger.debug("等待所有执行线程")
+    logger.error("等待所有执行线程")
 
+    while True:
+        allGrapThreadDied = True
+        for t in threadCollect:
+            if True == t.isAlive():
+                allGrapThreadDied = False
+                time.sleep(5)
+                continue
+        if True == allGrapThreadDied:
+            logger.error("所有爬虫线程都已死亡，等待写入线程死亡")
+            for t in writeThread:
+                t.allGrapThreadDied = True
+            while True:
+                allGrapThreadDied = True
+                for t in writeThread:
+                    if True == t.isAlive():
+                        allGrapThreadDied = False
+                        time.sleep(5)
+                        continue
+                if True == allGrapThreadDied:
+                    logger.error("所有写入线程都已死亡")
+                    break
+        break
+
+    logger.error("开始保存当前爬虫")
     saveLastStatus(statusFile,readDeaprtment,readingDepartment)
     
-    logger.debug("grap cuitlib finished,结束时间:"+ datetime.datetime.now().strftime('%b-%d-%y %H:%M:%S') )
+    logger.error("grap cuitlib finished,结束时间:"+ datetime.datetime.now().strftime('%b-%d-%y %H:%M:%S') )

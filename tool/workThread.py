@@ -19,6 +19,18 @@ from entity.libraryPage import *
 
 logger = logging.getLogger("cuitlib")  
 
+grapThreadWaitTime = 1
+writerThreadWaitTime = 1
+
+if __name__ == '__main__':
+    while True:
+        try:
+            x = 1%0
+        except:
+            break
+        print "other"
+    print "end"
+
 class ThreadGetUserDetailThread(threading.Thread):
     def __init__(self, userDetailQueue, userInfoQueue, readedDeaprtment, readingDepartment):
         threading.Thread.__init__(self)
@@ -26,18 +38,18 @@ class ThreadGetUserDetailThread(threading.Thread):
         self.userInfoQueue = userInfoQueue
         self.readedDeaprtment = readedDeaprtment
         self.readingDepartment = readingDepartment
-        self.logger = logging.getLogger("cuitlib.GetUserDetail")  
+        self.logger = logging.getLogger("cuitlib.GetUserDetail") 
+        self.logger.error("新建获取用户资料线程")
 
     def __del__(self):
-        self.logger.debug("获取用户资料线程关毕")
+        self.logger.error("关毕获取用户资料线程")
 
     def run(self): 
         while True:
-            #userPara = None
             try:
-                #global userPara
-                userPara = self.userDetailQueue.get(True, 60) 
+                userPara = self.userDetailQueue.get(True, grapThreadWaitTime) 
             except Queue.Empty, e:
+                self.logger.error("获取要读取的用户超时")
                 break
             departmentKey = '%s%s' % (userPara[0],userPara[1]) 
             readedAllDepartment = True
@@ -82,6 +94,7 @@ class ThreadGetUserDetailThread(threading.Thread):
                     del self.readingDepartment['%s%s' % (userPara[0],userPara[1])]
                     self.readedDeaprtment[departmentKey] = ''
             self.userDetailQueue.task_done()
+        print "跳出获取用户信息的循环"
 
     def getuser(self,number,passwd):
         ###用cookielib模块创建一个对象，再用urlllib2模块创建一个cookie的handler
@@ -113,25 +126,40 @@ class ThreadGetUserDetailThread(threading.Thread):
 class WrittingUserDetailThread(threading.Thread):
     def __init__(self, dbConnQueue, userInfoQueue ,bookIdQueue):
         threading.Thread.__init__(self)
+        self.logger = logging.getLogger("cuitlib.WrittingUserDetail") 
         self.userInfoQueue = userInfoQueue
+        self.allGrapThreadDied = False
         self.dbConnQueue = dbConnQueue
         self.bookIdQueue = bookIdQueue
-        self.conn = dbConnQueue.get(True, 60*3)
-        self.logger = logging.getLogger("cuitlib.WrittingUserDetail") 
+        try:
+            self.conn = dbConnQueue.get(True, writerThreadWaitTime)
+        except Queue.Empty, e:
+            self.logger.error("写入用户资料线程获取数据库失败") 
+            raise
+        self.logger.error("新建写入用户资料线程")
 
     def __del__(self):
         self.dbConnQueue.task_done()
-        self.logger.debug("写入用户资料线程关毕")
+        self.logger.error("写入用户资料线程关毕")
+
+    def getUnit(self,queue,allGrapThreadDied):
+        while True:
+            try: 
+                return queue.get(True,30) 
+            except Queue.Empty, e:
+                if True == allGrapThreadDied:
+                    pass
+                else:
+                    raise
 
     def run(self):
-      while True:
+        while True:
             try:
-                #user = None
                 try:
-                    #global user
-                    user = self.userInfoQueue.get(True, 60) 
+                    user = self.getUnit(self.userInfoQueue, self.allGrapThreadDied)
                 except Queue.Empty, e:
-                    break
+                    self.logger.error("获取用户信息超时，跳出循环")
+                    break 
                 
                 cursor = self.conn.cursor()
         
@@ -175,9 +203,11 @@ class WrittingUserDetailThread(threading.Thread):
                 self.conn.commit()
                 cursor.close()
             except Exception,data:
+                traceback.print_exc()
                 self.logger.error( '保存用户信息失败：'+ user.user.name)
                 self.logger.error( str(Exception)+ ":" +str(data) )
             self.userInfoQueue.task_done()
+        self.logger.error('跳出保存用户线程')
 
 
 class GetBookDetailThread(threading.Thread):
@@ -189,14 +219,12 @@ class GetBookDetailThread(threading.Thread):
         self.logger = logging.getLogger("cuitlib.GetBookDetail") 
 
     def __del__(self):
-        self.logger.debug("获取书籍详细资料线程关毕")
+        self.logger.error("获取书籍详细资料线程关毕")
 
     def run(self):
       while True:
-            #marc_no = None
             try:
-                #global marc_no
-                marc_no = self.bookIdQueue.get(True, 60)
+                marc_no = self.bookIdQueue.get(True, grapThreadWaitTime)
             except Queue.Empty, e:
                 break
             if( self.readedBookId.has_key(marc_no) ):
@@ -235,23 +263,33 @@ class WrittingBookDetailThread(threading.Thread):
         threading.Thread.__init__(self)
         self.dbConnQueue = dbConnQueue
         self.bookDetailQueue = bookDetailQueue
-        self.conn = dbConnQueue.get(True, 60*3)
+        self.conn = dbConnQueue.get(True, writerThreadWaitTime)
+        self.allGrapThreadDied = False
         self.logger = logging.getLogger("cuitlib.WrittingBookDetail") 
+        self.logger.error("新建写入书籍详细资料线程")
 
     def __del__(self):
-        self.logger.debug("写入书籍详细资料线程关毕")
+        self.logger.error("写入书籍详细资料线程关毕")
+
+    def getUnit(self,queue,allGrapThreadDied):
+        while True:
+            try: 
+                return queue.get(True,3) 
+            except Queue.Empty, e:
+                if True == allGrapThreadDied:
+                    pass
+                else:
+                    raise
 
     def run(self):
       while True:
             try:
-                #bookDetail = None
                 try:
-                    #global bookDetail
-                    bookDetail = self.bookDetailQueue.get(True, 60)
+                    bookDetail = self.getUnit(self.bookDetailQueue, self.allGrapThreadDied)
                 except Queue.Empty, e:
-                    self.logger.debug("获取书籍超时，跳出循环")
+                    self.logger.error("获取书籍超时，跳出循环")
                     break
-
+                self.logger.error("调试:WrittingBookDetailThread")
                 if None == bookDetail:
                     continue
 
