@@ -57,6 +57,7 @@ def saveLastStatus(statusFile,readedDeaprtment,readingDepartment):
     logger.error("保存当前任务执行状态完毕")
 
 if __name__ == '__main__':
+    return
     logFileName = "cuitlib.log"
     logger = initLogger( logFileName)
     logger.error("init cuitlib crawler,启动时间:"+ datetime.datetime.now().strftime('%b-%d-%y %H:%M:%S') )

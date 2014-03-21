@@ -11,6 +11,7 @@ import cookielib
 import threading
 import logging
 import traceback
+import unittest
 
 sys.path.append("..")
 
@@ -312,3 +313,13 @@ class WrittingBookDetailThread(threading.Thread):
                 self.bookDetailQueue.task_done()
             except Exception,data:
                 self.logger.error( str(Exception)+ ":" +str(data) )
+
+class abc(unittest.TestCase):
+    def abc(self):
+        return 2
+
+    def testabc(self):
+        self.assertEqual( 3 , self.abc())
+
+if __name__ == '__main__':
+    unittest.main()    
