@@ -57,7 +57,14 @@ CREATE TABLE `t_borrowingbook` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-
+alter table t_user
+  add CONSTRAINT uc_user UNIQUE (certificatenumber);
+alter table t_borrowingbook
+  add CONSTRAINT uc_onebookeveryuser UNIQUE (borrowercode,marc_no,borrowDate);
+alter table t_borrowedbook
+  add CONSTRAINT uc_onebookeveryuser UNIQUE (borrowercode,marc_no,borrowDate);
+alter table t_books
+  add CONSTRAINT uc_book UNIQUE (marc_no);
 
 
 

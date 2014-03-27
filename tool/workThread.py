@@ -17,20 +17,16 @@ sys.path.append("..")
 
 from bs4 import BeautifulSoup
 from entity.libraryPage import * 
+from ConfigParser import ConfigParser
 
 logger = logging.getLogger("cuitlib")  
 
-grapThreadWaitTime = 1
-writerThreadWaitTime = 1
+waitTimeInConnDb = 10
+waitTimeGetNextUnitInGrapThread = 3
+waitTimeGetNextUnitInWriteThread = 3
 
-if __name__ == '__main__':
-    while True:
-        try:
-            x = 1%0
-        except:
-            break
-        print "other"
-    print "end"
+config = ConfigParser()
+config.read( 'config')
 
 class ThreadGetUserDetailThread(threading.Thread):
     def __init__(self, userDetailQueue, userInfoQueue, readedDeaprtment, readingDepartment):
@@ -43,23 +39,24 @@ class ThreadGetUserDetailThread(threading.Thread):
         self.logger.error("新建获取用户资料线程")
 
     def __del__(self):
-        self.logger.error("关毕获取用户资料线程")
+        self.logger.error("获取用户资料线程死亡")
 
     def run(self): 
         while True:
             try:
-                userPara = self.userDetailQueue.get(True, grapThreadWaitTime) 
+                departmentKey = self.userDetailQueue.get(True, waitTimeGetNextUnitInGrapThread) 
             except Queue.Empty, e:
                 self.logger.error("获取要读取的用户超时")
                 break
-            departmentKey = '%s%s' % (userPara[0],userPara[1]) 
             readedAllDepartment = True
             if  not self.readedDeaprtment.has_key(departmentKey):
                 availStuNum = 0
-                self.readingDepartment['%s%s' % (userPara[0],userPara[1])] = {}
-                for stuNum in range(1,200):
-                    number = '%s%s%03d' % (userPara[0],userPara[1],stuNum)
-                    self.readingDepartment['%s%s' % (userPara[0],userPara[1])]['%03d' % (stuNum)] = ""
+                self.readingDepartment[departmentKey] = {}
+                lowerNumber = int(config.get('department','lowerNumberPerDepartement'))
+                uperNumber = int(config.get('department','uperNumberPerDepartement'))
+                for stuNum in range(lowerNumber,uperNumber):
+                    number = '%s%03d' % (departmentKey,stuNum)
+                    self.readingDepartment[departmentKey]['%03d' % (stuNum)] = ""
                     try:
                         times = 0
                         while( times < 5):
@@ -92,7 +89,7 @@ class ThreadGetUserDetailThread(threading.Thread):
                         self.logger.error( '获取用户信息异常：'+ number)
                         self.logger.error( str(Exception)+ ":" +str(data) )
                 if True == readedAllDepartment:
-                    del self.readingDepartment['%s%s' % (userPara[0],userPara[1])]
+                    del self.readingDepartment[departmentKey]
                     self.readedDeaprtment[departmentKey] = ''
             self.userDetailQueue.task_done()
         print "跳出获取用户信息的循环"
@@ -125,15 +122,16 @@ class ThreadGetUserDetailThread(threading.Thread):
         return user
 
 class WrittingUserDetailThread(threading.Thread):
-    def __init__(self, dbConnQueue, userInfoQueue ,bookIdQueue):
+    def __init__(self, dbConnQueue, userInfoQueue, bookIdQueue):
         threading.Thread.__init__(self)
         self.logger = logging.getLogger("cuitlib.WrittingUserDetail") 
         self.userInfoQueue = userInfoQueue
         self.allGrapThreadDied = False
         self.dbConnQueue = dbConnQueue
         self.bookIdQueue = bookIdQueue
+        self.record = {"user":0,"readingBook":0,"readedBook":0}
         try:
-            self.conn = dbConnQueue.get(True, writerThreadWaitTime)
+            self.conn = dbConnQueue.get(True, waitTimeInConnDb)
         except Queue.Empty, e:
             self.logger.error("写入用户资料线程获取数据库失败") 
             raise
@@ -141,23 +139,25 @@ class WrittingUserDetailThread(threading.Thread):
 
     def __del__(self):
         self.dbConnQueue.task_done()
+        self.logger.info("本次新增%d个用户,%d条借阅中记录，%d条借阅历史记录" 
+            % (self.record["user"],self.record["readingBook"],self.record["readedBook"]))
         self.logger.error("写入用户资料线程关毕")
 
-    def getUnit(self,queue,allGrapThreadDied):
+    def getUnit(self):
         while True:
             try: 
-                return queue.get(True,30) 
+                return self.userInfoQueue.get(True,waitTimeGetNextUnitInWriteThread) 
             except Queue.Empty, e:
-                if True == allGrapThreadDied:
-                    pass
-                else:
+                if True == self.allGrapThreadDied:
                     raise
+                else:
+                    self.logger.error("写入用户资料线程超时")
 
     def run(self):
         while True:
             try:
                 try:
-                    user = self.getUnit(self.userInfoQueue, self.allGrapThreadDied)
+                    user = self.getUnit()
                 except Queue.Empty, e:
                     self.logger.error("获取用户信息超时，跳出循环")
                     break 
@@ -172,7 +172,16 @@ class WrittingUserDetailThread(threading.Thread):
                              user.user.expireDate, user.user.registreDate, user.user.effectDate,\
                              user.user.readerType,user.user.totalBooks, user.user.department,\
                              user.user.workUnit, user.user.sex]
-                cursor.execute( insertUserQuery, userValue )
+                try:
+                    cursor.execute( insertUserQuery, userValue )
+                except MySQLdb.Error, e:
+                    if 1062 == e.args[0]:
+                        self.logger.info("该记录已存在,用户:"
+                            +"certificateNumber:"+ str(user.user.certificateNumber) )
+                    else:
+                        self.logger.error("Mysql Error %d: %s" % (e.args[0], e.args[1]))
+                else:
+                    self.record["user"] = self.record["user"] + 1
 
                 insertBorringBookQuery = '''INSERT INTO  t_borrowingbook (
                     borrowercode , barcode , marc_no , name , writer ,borrowDate , dueDate , address )
@@ -184,8 +193,16 @@ class WrittingUserDetailThread(threading.Thread):
                     self.bookIdQueue.put(bookEntity.marc_no)
                     try:
                         cursor.execute( insertBorringBookQuery, book )
-                    except :
-                        print book
+                    except MySQLdb.Error, e:
+                        if 1062 == e.args[0]:
+                            self.logger.info("该记录已存在,"
+                                +"borrowerCode:"+ str(bookEntity.borrowerCode) + ","
+                                +"marc_no:"+ str(bookEntity.marc_no ) + ","
+                                +"borrowDate:"+ str(bookEntity.borrowDate) )
+                        else:
+                            self.logger.error("Mysql Error %d: %s" % (e.args[0], e.args[1]))
+                    else:
+                        self.record["readingBook"] = self.record["readingBook"] + 1
 
                 insertBorredBookQuery = '''INSERT INTO  t_borrowedbook (
                     borrowerCode, barcode , marc_no , name , 
@@ -199,13 +216,20 @@ class WrittingUserDetailThread(threading.Thread):
                     self.bookIdQueue.put(bookEntity.marc_no)
                     try:
                         cursor.execute( insertBorredBookQuery, book)
-                    except :
-                        print book
+                    except MySQLdb.Error, e:
+                        if 1062 == e.args[0]:
+                            self.logger.info("该记录已存在,"
+                                +"borrowerCode:"+ str(bookEntity.borrowerCode) + ","
+                                +"marc_no:"+ bookEntity.marc_no + ","
+                                +"borrowDate:"+ str(bookEntity.borrowDate) )
+                        else:
+                            self.logger.error("Mysql Error %d: %s" % (e.args[0], e.args[1]))
+                    else:
+                        self.record["readedBook"] = self.record["readedBook"] + 1
                 self.conn.commit()
                 cursor.close()
             except Exception,data:
                 traceback.print_exc()
-                self.logger.error( '保存用户信息失败：'+ user.user.name)
                 self.logger.error( str(Exception)+ ":" +str(data) )
             self.userInfoQueue.task_done()
         self.logger.error('跳出保存用户线程')
@@ -225,7 +249,7 @@ class GetBookDetailThread(threading.Thread):
     def run(self):
       while True:
             try:
-                marc_no = self.bookIdQueue.get(True, grapThreadWaitTime)
+                marc_no = self.bookIdQueue.get(True, waitTimeGetNextUnitInGrapThread)
             except Queue.Empty, e:
                 break
             if( self.readedBookId.has_key(marc_no) ):
@@ -262,35 +286,36 @@ class GetBookDetailThread(threading.Thread):
 class WrittingBookDetailThread(threading.Thread):
     def __init__(self, dbConnQueue, bookDetailQueue):
         threading.Thread.__init__(self)
-        self.dbConnQueue = dbConnQueue
-        self.bookDetailQueue = bookDetailQueue
-        self.conn = dbConnQueue.get(True, writerThreadWaitTime)
-        self.allGrapThreadDied = False
         self.logger = logging.getLogger("cuitlib.WrittingBookDetail") 
         self.logger.error("新建写入书籍详细资料线程")
+        self.dbConnQueue = dbConnQueue
+        self.bookDetailQueue = bookDetailQueue
+        self.conn = dbConnQueue.get(True, waitTimeInConnDb)
+        self.allGrapThreadDied = False
+        self.record = {"bookNum":0}
 
     def __del__(self):
+        self.logger.error("本次新增%d本书" % (self.record["bookNum"]))
         self.logger.error("写入书籍详细资料线程关毕")
 
-    def getUnit(self,queue,allGrapThreadDied):
+    def getUnit(self):
         while True:
             try: 
-                return queue.get(True,3) 
+                return self.bookDetailQueue.get(True,waitTimeGetNextUnitInWriteThread) 
             except Queue.Empty, e:
-                if True == allGrapThreadDied:
-                    pass
-                else:
+                if True == self.allGrapThreadDied:
                     raise
+                else:
+                    self.logger.error("写入书籍详细资料线程超时")
 
     def run(self):
       while True:
             try:
                 try:
-                    bookDetail = self.getUnit(self.bookDetailQueue, self.allGrapThreadDied)
+                    bookDetail = self.getUnit()
                 except Queue.Empty, e:
                     self.logger.error("获取书籍超时，跳出循环")
                     break
-                self.logger.error("调试:WrittingBookDetailThread")
                 if None == bookDetail:
                     continue
 
@@ -307,19 +332,20 @@ class WrittingBookDetailThread(threading.Thread):
                 '''
                 bookValue = [bookDetail.name,bookDetail.writer,bookDetail.publisher,bookDetail.ISBN,bookDetail.price,
                     bookDetail.physicalDescriptionArea,bookDetail.subject,bookDetail.classNumber,bookDetail.marc_no]
-                cursor.execute( insertBookDetailQuery, bookValue )
+                try:
+                    cursor.execute( insertBookDetailQuery, bookValue )
+                except MySQLdb.Error, e:
+                    if 1062 == e.args[0]:
+                        self.logger.info("该记录已存在,书籍:"
+                            +"marc_no:"+ str(bookDetail.marc_no ) )
+                    else:
+                        self.logger.error("Mysql Error %d: %s" % (e.args[0], e.args[1]))
+                else:
+                    self.record["bookNum"] = self.record["bookNum"] + 1
                 
                 self.conn.commit()
                 self.bookDetailQueue.task_done()
             except Exception,data:
-                self.logger.error( str(Exception)+ ":" +str(data) )
-
-class abc(unittest.TestCase):
-    def abc(self):
-        return 2
-
-    def testabc(self):
-        self.assertEqual( 3 , self.abc())
-
-if __name__ == '__main__':
-    unittest.main()      
+                traceback.print_exc()
+                self.logger.error( bookDetail.marc_no + str(Exception)+ ":" +str(data) )
+            

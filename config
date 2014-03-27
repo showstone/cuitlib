@@ -1,0 +1,17 @@
+[database]
+dbhost=localhost
+dbuser=cuitlib2
+dbpasswd=cuitlib2
+dbName=cuitlib2
+dbport=3306
+dbcharset=utf8
+
+[thread]
+getUserDetailThreadNum=10
+getBookDetailThreadNum=10
+
+[department]
+departementLowerNumber=2010
+departementUperNumber=2014
+lowerNumberPerDepartement=27
+uperNumberPerDepartement=30
